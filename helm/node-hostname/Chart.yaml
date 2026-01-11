@@ -1,0 +1,17 @@
+apiVersion: v2
+name: node-hostname
+description: A Helm chart for node-hostname application
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+- nodejs
+- hostname
+- kubernetes
+- test
+maintainers:
+- name: Vagner Martins
+  email: vagner.samm@gmail.com
+sources:
+- https://github.com/cristiklein/node-hostname
+home: https://github.com/vamartins/node-hostname-k8s

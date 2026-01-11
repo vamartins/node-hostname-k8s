@@ -1,0 +1,33 @@
+# Production environment values
+# Override default values for production deployment
+
+replicaCount: 3
+
+image:
+  repository: vamartins/node-hostname
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+  nodePort: 31080 # Maps to localhost:9080 in Kind cluster
+
+ingress:
+  enabled: false # Using direct NodePort access for production
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80

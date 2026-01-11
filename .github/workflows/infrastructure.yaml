@@ -1,0 +1,148 @@
+name: Infrastructure Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'Cluster name'
+        required: true
+        default: 'node-hostname'
+      environment:
+        description: 'Environment to setup'
+        required: true
+        type: choice
+        options:
+        - staging
+        - production
+        - both
+
+jobs:
+  setup-infrastructure:
+    name: Setup Kubernetes Infrastructure
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create Kind Cluster
+      uses: helm/kind-action@v1.8.0
+      with:
+        cluster_name: ${{ github.event.inputs.cluster_name }}
+        config: |
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            extraPortMappings:
+            - containerPort: 30080
+              hostPort: 8080
+              protocol: TCP
+            - containerPort: 30443
+              hostPort: 8443
+              protocol: TCP
+            - containerPort: 31080
+              hostPort: 9080
+              protocol: TCP
+            - containerPort: 31443
+              hostPort: 9443
+              protocol: TCP
+          - role: worker
+          - role: worker
+
+    - name: Install NGINX Ingress Controller
+      run: |
+        echo "📦 Installing NGINX Ingress Controller..."
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+
+        helm install ingress-nginx ingress-nginx/ingress-nginx \
+          --namespace ingress-nginx \
+          --create-namespace \
+          --set controller.service.type=NodePort \
+          --set controller.service.nodePorts.http=30080 \
+          --set controller.service.nodePorts.https=30443 \
+          --wait \
+          --timeout 5m
+
+        echo "✅ NGINX Ingress Controller installed"
+
+    - name: Install cert-manager
+      run: |
+        echo "📦 Installing cert-manager..."
+        helm repo add jetstack https://charts.jetstack.io
+        helm repo update
+
+        helm install cert-manager jetstack/cert-manager \
+          --namespace cert-manager \
+          --create-namespace \
+          --set installCRDs=true \
+          --wait \
+          --timeout 5m
+
+        echo "✅ cert-manager installed"
+
+    - name: Wait for cert-manager
+      run: |
+        echo "⏳ Waiting for cert-manager to be ready..."
+        kubectl wait --namespace cert-manager \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/instance=cert-manager \
+          --timeout=120s
+
+    - name: Create self-signed ClusterIssuer
+      run: |
+        echo "🔐 Creating self-signed certificate issuer..."
+        cat <<EOF | kubectl apply -f -
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata:
+          name: selfsigned-issuer
+        spec:
+          selfSigned: {}
+        EOF
+        echo "✅ ClusterIssuer created"
+
+    - name: Install metrics-server
+      run: |
+        echo "📦 Installing metrics-server..."
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+        # Patch metrics-server for Kind (insecure TLS)
+        kubectl patch deployment metrics-server -n kube-system --type='json' \
+          -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+
+        echo "✅ metrics-server installed"
+
+    - name: Create Namespaces
+      if: github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'both'
+      run: |
+        echo "📦 Creating staging namespace..."
+        kubectl create namespace node-hostname-staging --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create Production Namespace
+      if: github.event.inputs.environment == 'production' || github.event.inputs.environment == 'both'
+      run: |
+        echo "📦 Creating production namespace..."
+        kubectl create namespace node-hostname --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Verify Infrastructure
+      run: |
+        echo "🔍 Verifying infrastructure..."
+        echo ""
+        echo "=== Nodes ==="
+        kubectl get nodes
+        echo ""
+        echo "=== Namespaces ==="
+        kubectl get namespaces
+        echo ""
+        echo "=== Ingress Controller ==="
+        kubectl get pods -n ingress-nginx
+        echo ""
+        echo "=== cert-manager ==="
+        kubectl get pods -n cert-manager
+        echo ""
+        echo "=== metrics-server ==="
+        kubectl get pods -n kube-system | grep metrics-server
+        echo ""
+        echo "✅ Infrastructure setup complete!"
