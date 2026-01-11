@@ -42,7 +42,9 @@ This project demonstrates a **complete Platform Engineering workflow** for deplo
 - **2 Namespaces**: 
   - `node-hostname-staging` - Auto-deploy from develop branch
   - `node-hostname-production` - Manual deploy with approval
-- **LoadBalancer Services** - Public IPs for each environment
+- **NGINX Ingress Controller** - Single LoadBalancer for all environments
+- **cert-manager** - Automatic TLS certificate management
+- **ClusterIP Services** - Internal services exposed via Ingress
 - **Horizontal Pod Autoscaler** - CPU-based scaling
 
 ### Deployment Flow
@@ -65,7 +67,8 @@ This project demonstrates a **complete Platform Engineering workflow** for deplo
 ### Infrastructure
 - 🏗️ **Terraform IaC** - Azure AKS with single cluster
 - 🔐 **Namespace Isolation** - Staging & Production separated
-- 🌐 **LoadBalancer** - Public IP per environment
+- 🌐 **NGINX Ingress** - Single LoadBalancer with host-based routing
+- 🔒 **TLS/HTTPS** - Self-signed certificates via cert-manager
 - 📊 **Metrics** - HPA for auto-scaling
 - 💰 **Cost-Optimized** - 1 node B2s (~$7.59/month)
 
@@ -158,6 +161,9 @@ This creates:
 - AKS Cluster: `aks-node-hostname` (1 node, B2s)
 - Namespace: `node-hostname-staging`
 - Namespace: `node-hostname-production`
+- NGINX Ingress Controller (with LoadBalancer)
+- cert-manager v1.13.3
+- ClusterIssuer (selfsigned-issuer)
 
 ### 5. Deploy to Staging (Automatic)
 
@@ -187,19 +193,70 @@ Pipeline:
 
 ### 7. Access Applications
 
+#### Get NGINX Ingress IP
+
 ```bash
 # Get cluster credentials
 az aks get-credentials --resource-group rg-node-hostname --name aks-node-hostname
 
-# Get staging IP
-kubectl get svc -n node-hostname-staging
+# Get NGINX Ingress Controller IP
+kubectl get svc -n ingress-nginx ingress-nginx-controller
+# Note the EXTERNAL-IP (e.g., 132.220.152.131)
+```
 
-# Get production IP
-kubectl get svc -n node-hostname-production
+#### Configure /etc/hosts (For Browser Access)
 
-# Test
-curl http://<STAGING_IP>
-curl http://<PRODUCTION_IP>
+Add this line to your `/etc/hosts` file:
+
+**macOS/Linux:**
+```bash
+echo "132.220.152.131 staging.node-hostname.local production.node-hostname.local" | sudo tee -a /etc/hosts
+```
+
+**Windows (PowerShell as Administrator):**
+```powershell
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "132.220.152.131 staging.node-hostname.local production.node-hostname.local"
+```
+
+> Replace `132.220.152.131` with your actual NGINX Ingress EXTERNAL-IP
+
+#### Access via Browser
+
+- **Staging HTTP:** http://staging.node-hostname.local
+- **Staging HTTPS:** https://staging.node-hostname.local (self-signed certificate warning expected)
+- **Production HTTP:** http://production.node-hostname.local
+- **Production HTTPS:** https://production.node-hostname.local (self-signed certificate warning expected)
+
+> ⚠️ **Certificate Warning:** Self-signed certificates will show a browser warning. Click "Advanced" → "Accept Risk" to proceed.
+
+#### Access via curl (Without /etc/hosts)
+
+```bash
+# Get Ingress IP
+INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+# Staging HTTP
+curl -H "Host: staging.node-hostname.local" http://$INGRESS_IP
+
+# Staging HTTPS (self-signed cert)
+curl -k -H "Host: staging.node-hostname.local" https://$INGRESS_IP
+
+# Production HTTP
+curl -H "Host: production.node-hostname.local" http://$INGRESS_IP
+
+# Production HTTPS (self-signed cert)
+curl -k -H "Host: production.node-hostname.local" https://$INGRESS_IP
+```
+
+#### Test Load Balancing
+
+```bash
+# 20 requests to staging
+for i in {1..20}; do curl -s -H "Host: staging.node-hostname.local" http://$INGRESS_IP; done | sort | uniq -c
+
+# Expected output shows distribution across multiple pods:
+#   10 {"hostname":"node-hostname-staging-abc123","version":"1.0.0"}
+#   10 {"hostname":"node-hostname-staging-xyz789","version":"1.0.0"}
 ```
 
 ---
@@ -307,8 +364,11 @@ az keyvault secret set \
 1. Terraform init/validate/plan
 2. Terraform apply/destroy
 3. Create namespaces (staging + production)
-4. Label namespaces with environment tags
-5. Output cluster info
+4. Install NGINX Ingress Controller
+5. Install cert-manager v1.13.3
+6. Create ClusterIssuer (selfsigned-issuer)
+7. Label namespaces with environment tags
+8. Output cluster info
 
 **Required Secrets:** All Azure credentials
 
@@ -350,9 +410,10 @@ az keyvault secret set \
 - **Approval**: Required (GitHub environment)
 
 **Outputs:**
-- LoadBalancer public IP
+- NGINX Ingress LoadBalancer IP
 - Deployment status
 - Pod/service information
+- Ingress configuration details
 
 ---
 
@@ -457,24 +518,53 @@ kubectl get hpa -A
 ### Test Application
 
 ```bash
-# Get LoadBalancer IPs
-STAGING_IP=$(kubectl get svc node-hostname-staging -n node-hostname-staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-PROD_IP=$(kubectl get svc node-hostname-production -n node-hostname-production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+# Get NGINX Ingress IP
+INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-# Test staging
-curl http://$STAGING_IP
-# {"hostname":"node-hostname-staging-abc123","version":"develop"}
+# Test staging (HTTP)
+curl -H "Host: staging.node-hostname.local" http://$INGRESS_IP
+# {"hostname":"node-hostname-staging-abc123","version":"1.0.0"}
 
-# Test production
-curl http://$PROD_IP
+# Test staging (HTTPS with self-signed cert)
+curl -k -H "Host: staging.node-hostname.local" https://$INGRESS_IP
+# {"hostname":"node-hostname-staging-abc123","version":"1.0.0"}
+
+# Test production (HTTP)
+curl -H "Host: production.node-hostname.local" http://$INGRESS_IP
 # {"hostname":"node-hostname-production-xyz789","version":"1.0.0"}
+
+# Test production (HTTPS with self-signed cert)
+curl -k -H "Host: production.node-hostname.local" https://$INGRESS_IP
+# {"hostname":"node-hostname-production-xyz789","version":"1.0.0"}
+```
+
+### Verify TLS Certificates
+
+```bash
+# Check cert-manager is running
+kubectl get pods -n cert-manager
+
+# Check ClusterIssuer
+kubectl get clusterissuer
+# NAME                READY   AGE
+# selfsigned-issuer   True    10m
+
+# Check certificates
+kubectl get certificate -n node-hostname-staging
+kubectl get certificate -n node-hostname-production
+
+# Describe certificate (staging)
+kubectl describe certificate -n node-hostname-staging
+
+# View TLS secret
+kubectl get secret node-hostname-tls-staging -n node-hostname-staging -o yaml
 ```
 
 ### Load Testing
 
 ```bash
 # Generate load to trigger HPA
-kubectl run -it --rm load-generator --image=busybox /bin/sh
+kubectl run -it --rm load-generator --image=busybox -n node-hostname-staging /bin/sh
 
 # Inside pod:
 while true; do wget -q -O- http://node-hostname-staging.node-hostname-staging.svc.cluster.local; done
@@ -482,6 +572,102 @@ while true; do wget -q -O- http://node-hostname-staging.node-hostname-staging.sv
 # Watch HPA scale
 kubectl get hpa -n node-hostname-staging --watch
 ```
+
+---
+
+## 🌐 Networking Architecture
+
+### NGINX Ingress Flow
+
+```
+Internet
+   │
+   └─► NGINX Ingress Controller (LoadBalancer)
+        └─► IP: 132.220.152.131
+             │
+             ├─► staging.node-hostname.local ──► ClusterIP Service ──► Staging Pods (2)
+             │                                    └─► TLS: node-hostname-tls-staging
+             │
+             └─► production.node-hostname.local ──► ClusterIP Service ──► Production Pods (3)
+                                                     └─► TLS: node-hostname-tls-production
+```
+
+### Key Changes from LoadBalancer Architecture
+
+**Before (LoadBalancer per namespace):**
+- ❌ 2 Public IPs (1 per environment) = Higher cost
+- ❌ No TLS/HTTPS support
+- ❌ Direct Service exposure
+- ✅ Simple configuration
+
+**After (Single NGINX Ingress):**
+- ✅ 1 Public IP (shared) = Lower cost
+- ✅ TLS/HTTPS with cert-manager
+- ✅ Host-based routing
+- ✅ Advanced features (rate limiting, CORS, rewrites)
+- ⚠️ Requires /etc/hosts or DNS configuration
+
+### Service Types
+
+| Environment | Service Type | Ingress | TLS |
+|-------------|--------------|---------|-----|
+| Staging | ClusterIP | ✅ Enabled | ✅ Self-signed |
+| Production | ClusterIP | ✅ Enabled | ✅ Self-signed |
+
+---
+
+## 🔒 TLS/HTTPS Configuration
+
+### cert-manager
+
+Automatically manages TLS certificates:
+- **Type:** Self-signed (via selfsigned-issuer)
+- **Renewal:** Automatic (90 days before expiry)
+- **Namespaces:** Per-environment certificates
+
+### Certificate Details
+
+```bash
+# View certificate expiry
+kubectl get certificate -n node-hostname-staging -o custom-columns=NAME:.metadata.name,READY:.status.conditions[0].status,EXPIRY:.status.notAfter
+
+# Extract and inspect certificate
+kubectl get secret node-hostname-tls-staging -n node-hostname-staging -o jsonpath='{.data.tls\.crt}' | base64 -d | openssl x509 -text -noout
+```
+
+### Browser Certificate Warning
+
+Self-signed certificates will show:
+- Chrome: "Your connection is not private" (NET::ERR_CERT_AUTHORITY_INVALID)
+- Firefox: "Warning: Potential Security Risk Ahead"
+
+**To bypass:**
+1. Click "Advanced"
+2. Click "Proceed to staging.node-hostname.local (unsafe)" or similar
+
+### Production TLS (Let's Encrypt)
+
+For production with valid certificates, replace `selfsigned-issuer` with Let's Encrypt:
+
+```yaml
+# ClusterIssuer with Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+```
+
+> Requires: Real domain name + DNS pointing to Ingress IP
 
 ---
 
@@ -501,11 +687,57 @@ Check Docker Hub credentials:
 kubectl get secret -n <namespace>
 ```
 
-### LoadBalancer Pending
+### Ingress 404 Not Found
 
-Azure may take 2-3 minutes to provision public IP:
+Check Ingress configuration:
 ```bash
-kubectl get svc -n <namespace> --watch
+kubectl get ingress -A
+kubectl describe ingress <ingress-name> -n <namespace>
+
+# Verify host header
+curl -v -H "Host: staging.node-hostname.local" http://<INGRESS-IP>
+```
+
+### TLS Certificate Not Ready
+
+```bash
+# Check certificate status
+kubectl get certificate -n <namespace>
+kubectl describe certificate <cert-name> -n <namespace>
+
+# Check cert-manager logs
+kubectl logs -n cert-manager -l app=cert-manager
+
+# Check ClusterIssuer
+kubectl get clusterissuer
+kubectl describe clusterissuer selfsigned-issuer
+```
+
+### NGINX Ingress Controller Issues
+
+```bash
+# Check NGINX controller pods
+kubectl get pods -n ingress-nginx
+
+# View NGINX logs
+kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
+
+# Check LoadBalancer service
+kubectl get svc -n ingress-nginx
+```
+
+### /etc/hosts Not Working
+
+Verify:
+```bash
+# macOS/Linux - Check hosts file
+cat /etc/hosts | grep node-hostname
+
+# Test DNS resolution
+ping staging.node-hostname.local
+
+# Bypass with curl
+curl -H "Host: staging.node-hostname.local" http://<INGRESS-IP>
 ```
 
 ### Terraform State Lock
@@ -552,6 +784,9 @@ terraform destroy -auto-approve
 - [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
 - [Helm Documentation](https://helm.sh/docs/)
 - [Kubernetes Best Practices](https://kubernetes.io/docs/concepts/configuration/overview/)
+- [NGINX Ingress Controller](https://kubernetes.github.io/ingress-nginx/)
+- [cert-manager Documentation](https://cert-manager.io/docs/)
+- [Let's Encrypt](https://letsencrypt.org/)
 
 ---
 
@@ -565,4 +800,4 @@ MIT License - See LICENSE file for details
 
 **Vagner Martins**
 - GitHub: [@vamartins](https://github.com/vamartins)
-- Docker Hub: [vamartins](https://hub.docker.com/u/vamartins)
+- Docker Hub: [almevag](https://hub.docker.com/u/almevag)
