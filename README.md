@@ -2,7 +2,7 @@
 
 [![Azure Infrastructure](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-infrastructure.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-infrastructure.yaml)
 [![Azure Deploy](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-deploy.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-deploy.yaml)
-[![Docker](https://img.shields.io/docker/v/vamartins/node-hostname?label=Docker)](https://hub.docker.com/r/vamartins/node-hostname)
+[![Docker](https://img.shields.io/docker/v/almevag/node-hostname?label=Docker)](https://hub.docker.com/r/almevag/node-hostname)
 
 **Complete Platform Engineering solution** for containerized NodeJS applications with automated infrastructure (Terraform), CI/CD pipelines, and production-ready deployment to Azure AKS.
 
@@ -408,7 +408,7 @@ ARG APP_VERSION=1.0.0
 
 Pipeline automatically:
 1. Extracts version: `grep -m1 "ARG APP_VERSION="`
-2. Tags image: `vamartins/node-hostname:1.0.0`
+2. Tags image: `almevag/node-hostname:1.0.0`
 3. Deploys with that version
 
 ### Update Version

@@ -108,6 +108,56 @@ jobs:
         ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
+    - name: Install cert-manager
+      if: github.event.inputs.action == 'apply'
+      run: |
+        echo "📦 Installing cert-manager..."
+        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
+
+        echo "⏳ Waiting for cert-manager to be ready..."
+        kubectl wait --namespace cert-manager \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/instance=cert-manager \
+          --timeout=300s
+
+        echo "✅ cert-manager installed successfully"
+
+    - name: Create ClusterIssuer
+      if: github.event.inputs.action == 'apply'
+      run: |
+        echo "🔐 Creating self-signed ClusterIssuer..."
+        cat <<EOF | kubectl apply -f -
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata:
+          name: selfsigned-issuer
+        spec:
+          selfSigned: {}
+        EOF
+
+        echo "✅ ClusterIssuer created: selfsigned-issuer"
+
+    - name: Install NGINX Ingress Controller
+      if: github.event.inputs.action == 'apply'
+      run: |
+        echo "🚀 Installing NGINX Ingress Controller..."
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+
+        helm install ingress-nginx ingress-nginx/ingress-nginx \
+          --namespace ingress-nginx \
+          --create-namespace \
+          --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+          --wait --timeout=5m
+
+        echo "⏳ Waiting for NGINX Ingress Controller to be ready..."
+        kubectl wait --namespace ingress-nginx \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/component=controller \
+          --timeout=300s
+
+        echo "✅ NGINX Ingress Controller installed successfully"
+
     - name: Save Outputs
       if: github.event.inputs.action == 'apply'
       working-directory: ${{ env.WORKING_DIR }}

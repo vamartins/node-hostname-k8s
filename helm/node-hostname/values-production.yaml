@@ -4,18 +4,28 @@
 replicaCount: 3
 
 image:
-  repository: vamartins/node-hostname
+  repository: almevag/node-hostname
   pullPolicy: IfNotPresent
   tag: "latest"
 
 service:
-  type: NodePort
+  type: ClusterIP
   port: 80
   targetPort: 8080
-  nodePort: 31080 # Maps to localhost:9080 in Kind cluster
 
 ingress:
-  enabled: false # Using direct NodePort access for production
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "selfsigned-issuer"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+  - host: ""
+    paths:
+    - path: /
+      pathType: Prefix
+  tls:
+  - secretName: node-hostname-tls-production
 
 resources:
   limits:

@@ -16,7 +16,7 @@ on:
 
 env:
   DOCKER_REGISTRY: docker.io
-  IMAGE_NAME: vamartins/node-hostname
+  IMAGE_NAME: almevag/node-hostname
 
 jobs:
   lint-and-test:
