@@ -119,11 +119,11 @@ EOF
 # Build Docker image
 echo -e "${BLUE}🐳 Building Docker image...${NC}"
 cd "$(dirname "$0")/.."
-docker build -t vamartins/node-hostname:${IMAGE_TAG} .
+docker build -t almevag/node-hostname:${IMAGE_TAG} .
 
 # Load image into Kind cluster
 echo -e "${BLUE}📥 Loading image into Kind cluster...${NC}"
-kind load docker-image vamartins/node-hostname:${IMAGE_TAG} --name ${CLUSTER_NAME}
+kind load docker-image almevag/node-hostname:${IMAGE_TAG} --name ${CLUSTER_NAME}
 
 # Verify image is loaded
 echo -e "${BLUE}🔍 Verifying image in cluster...${NC}"
