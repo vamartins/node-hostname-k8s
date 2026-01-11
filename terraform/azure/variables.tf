@@ -30,7 +30,7 @@ variable "environment" {
 variable "kubernetes_version" {
   description = "Kubernetes version for AKS cluster"
   type        = string
-  default     = "1.28"
+  default     = null # Use Azure's default supported version
 }
 
 variable "node_count" {
