@@ -59,7 +59,7 @@ jobs:
         echo "app_version=${APP_VERSION}" >> $GITHUB_OUTPUT
 
         if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          echo "version=latest" >> $GITHUB_OUTPUT
+          echo "version=${APP_VERSION}" >> $GITHUB_OUTPUT
           echo "image_tag=${APP_VERSION}" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
           echo "version=develop" >> $GITHUB_OUTPUT
