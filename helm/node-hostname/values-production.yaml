@@ -9,10 +9,9 @@ image:
   tag: "latest"
 
 service:
-  type: NodePort
+  type: LoadBalancer
   port: 80
   targetPort: 8080
-  nodePort: 31080 # Maps to localhost:9080 in Kind cluster
 
 ingress:
   enabled: false # Using direct NodePort access for production

@@ -9,10 +9,9 @@ image:
   tag: "develop"
 
 service:
-  type: NodePort
+  type: LoadBalancer
   port: 80
   targetPort: 8080
-  nodePort: 30080 # Maps to localhost:8080 in Kind cluster
 
 ingress:
   enabled: true
