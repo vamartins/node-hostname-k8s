@@ -27,3 +27,17 @@ temp/
 # Ignore logs
 *.log
 logs/
+
+# Ignore Terraform files
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/.terraform.lock.hcl
+*.tfvars
+!terraform/*.tfvars.example
+
+# Ignore kubeconfig files
+kubeconfig
+*.kubeconfig
+*kubeconfig*.yaml

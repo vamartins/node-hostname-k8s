@@ -1,79 +1,205 @@
 # Node Hostname - Kubernetes Platform Engineering Project
 
-[![Infrastructure](https://github.com/vamartins/node-hostname-k8s/actions/workflows/infrastructure.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/infrastructure.yaml)
-[![Deploy](https://github.com/vamartins/node-hostname-k8s/actions/workflows/deploy.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/deploy.yaml)
+[![Azure Infrastructure](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-infrastructure.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-infrastructure.yaml)
+[![Azure Deploy](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-deploy.yaml/badge.svg)](https://github.com/vamartins/node-hostname-k8s/actions/workflows/azure-deploy.yaml)
 [![Docker](https://img.shields.io/docker/v/vamartins/node-hostname?label=Docker)](https://hub.docker.com/r/vamartins/node-hostname)
 
-**Complete Platform Engineering solution** for containerized NodeJS applications on local Kubernetes with automated infrastructure, CI/CD pipelines, and production-ready deployment patterns.
+**Complete Platform Engineering solution** for containerized NodeJS applications with automated infrastructure (Terraform), CI/CD pipelines, and production-ready deployment to Azure AKS.
 
 ---
 
 ## 📖 Table of Contents
 
+- [Overview](#-overview)
+- [Architecture](#-architecture)
 - [Features](#-features)
+- [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
 - [Project Structure](#-project-structure)
-- [Local Development](#-local-development)
+- [Security & Secrets](#-security--secrets)
 - [CI/CD Pipelines](#-cicd-pipelines)
-- [Environments](#-environments)
-- [Versioning & Updates](#-versioning--updates)
-- [Testing](#-testing)
-- [Cleanup](#-cleanup)
+- [Local Development](#-local-development)
+- [Versioning](#-versioning)
 - [Troubleshooting](#-troubleshooting)
+
+---
+
+## 🎯 Overview
+
+This project demonstrates a **complete Platform Engineering workflow** for deploying containerized applications to Azure Kubernetes Service (AKS) with:
+- Infrastructure as Code (Terraform)
+- Automated CI/CD (GitHub Actions)
+- Multi-environment deployment (Staging + Production in same cluster)
+- Namespace isolation
+- Production approval gates
+
+---
+
+## 🏗️ Architecture
+
+### Infrastructure
+- **1 Azure AKS Cluster** (1 node, Standard_B2s)
+- **2 Namespaces**: 
+  - `node-hostname-staging` - Auto-deploy from develop branch
+  - `node-hostname-production` - Manual deploy with approval
+- **LoadBalancer Services** - Public IPs for each environment
+- **Horizontal Pod Autoscaler** - CPU-based scaling
+
+### Deployment Flow
+```
+┌─────────────┐
+│   develop   │ ──push──> Staging (auto)
+└─────────────┘
+       │
+       │ manual trigger
+       ▼
+┌─────────────┐
+│     main    │ ──approval──> Production (manual)
+└─────────────┘
+```
 
 ---
 
 ## ✨ Features
 
 ### Infrastructure
-- 🏗️ **Local Kubernetes** - Kind cluster (1 control-plane + 2 workers)
-- 🔐 **HTTPS/TLS** - cert-manager with self-signed certificates
-- 🌐 **Ingress** - NGINX for HTTP routing
-- 📊 **Metrics** - metrics-server for HPA
-- 🔄 **Auto-scaling** - Horizontal Pod Autoscaler
+- 🏗️ **Terraform IaC** - Azure AKS with single cluster
+- 🔐 **Namespace Isolation** - Staging & Production separated
+- 🌐 **LoadBalancer** - Public IP per environment
+- 📊 **Metrics** - HPA for auto-scaling
+- 💰 **Cost-Optimized** - 1 node B2s (~$7.59/month)
 
 ### Application
 - 🐳 **Containerized** - Multi-stage Docker build
 - 🔒 **Secure** - Non-root user, security contexts
-- 📦 **Helm** - Production-ready charts
+- 📦 **Helm Charts** - Production-ready deployment
 - 🚀 **Load Balanced** - Multiple replicas
 - ✅ **Health Checks** - Liveness/readiness probes
+- 🏷️ **Versioned** - Semantic versioning via Dockerfile
 
 ### CI/CD
-- 🛠️ **Infrastructure Pipeline** - Automated setup (manual trigger)
-- 🚢 **Deployment Pipeline** - Auto build/test/deploy
-- 🎯 **Multi-Environment** - Staging & Production
-- ✋ **Approvals** - Manual approval for production
-- 🏷️ **Versioning** - Semantic version support
+- 🛠️ **Infrastructure Pipeline** - Single cluster + 2 namespaces
+- 🚢 **Deployment Pipeline** - Auto staging, manual production
+- ✋ **Approvals** - GitHub environment protection
+- 🔒 **Secrets Management** - GitHub Secrets for credentials
+
+---
+
+## 📋 Prerequisites
+
+### Required Tools
+- Azure CLI (`az`)
+- Terraform 1.6+
+- kubectl
+- helm 3.0+
+- Docker
+
+### Required Accounts
+- Azure subscription (with Contributor role)
+- Docker Hub account
+- GitHub account
+
+### Local Development Only
+- Docker Desktop
+- Kind (for local Kubernetes)
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- macOS with Docker Desktop running
-- 4GB+ RAM available
+### 1. Create Azure Service Principal
 
-### 1. Create Cluster
 ```bash
-./scripts/create-cluster.sh
+az ad sp create-for-rbac \
+  --name "sp-node-hostname" \
+  --role Contributor \
+  --scopes /subscriptions/YOUR_SUBSCRIPTION_ID \
+  --sdk-auth
 ```
 
-### 2. Deploy Staging
-```bash
-./scripts/deploy-local.sh staging
-```
-Access: **http://localhost:8080**
+Save the output JSON - you'll need these values:
+- `clientId` → AZURE_CLIENT_ID
+- `clientSecret` → AZURE_CLIENT_SECRET  
+- `subscriptionId` → AZURE_SUBSCRIPTION_ID
+- `tenantId` → AZURE_TENANT_ID
 
-### 3. Deploy Production
-```bash
-./scripts/deploy-local.sh production
-```
-Access: **http://localhost:9080**
+### 2. Configure GitHub Secrets
 
-### 4. Cleanup
+Navigate to: **GitHub Repository → Settings → Secrets and variables → Actions**
+
+Add these secrets:
+
+| Secret Name | Description |
+|-------------|-------------|
+| `AZURE_CLIENT_ID` | Service Principal App ID |
+| `AZURE_CLIENT_SECRET` | Service Principal Password |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure Subscription ID |
+| `AZURE_TENANT_ID` | Azure AD Tenant ID |
+| `DOCKER_USERNAME` | Docker Hub username |
+| `DOCKER_PASSWORD` | Docker Hub access token |
+
+> ⚠️ **NEVER commit these credentials to Git!** Always use GitHub Secrets, `.env` files (Git-ignored), or Azure Key Vault.
+
+### 3. Configure Production Approval
+
+Navigate to: **GitHub Repository → Settings → Environments**
+
+Create environment: `production`
+- Enable "Required reviewers"
+- Add yourself as reviewer
+
+### 4. Create Infrastructure
+
+Go to: **GitHub Actions → Azure Infrastructure Setup → Run workflow**
+- **Action**: `apply`
+
+This creates:
+- Resource Group: `rg-node-hostname`
+- AKS Cluster: `aks-node-hostname` (1 node, B2s)
+- Namespace: `node-hostname-staging`
+- Namespace: `node-hostname-production`
+
+### 5. Deploy to Staging (Automatic)
+
 ```bash
-./scripts/cleanup.sh
+git checkout develop
+# Make a change or empty commit
+git commit --allow-empty -m "trigger staging deploy"
+git push origin develop
+```
+
+Pipeline automatically:
+1. Builds Docker image with `develop` tag
+2. Deploys to `node-hostname-staging` namespace
+3. Outputs LoadBalancer IP
+
+### 6. Deploy to Production (Manual)
+
+Go to: **GitHub Actions → Deploy to Azure AKS → Run workflow**
+- Select branch: `main`
+- Approve when prompted
+
+Pipeline:
+1. Builds Docker image with version from Dockerfile
+2. Waits for manual approval
+3. Deploys to `node-hostname-production` namespace
+4. Outputs LoadBalancer IP
+
+### 7. Access Applications
+
+```bash
+# Get cluster credentials
+az aks get-credentials --resource-group rg-node-hostname --name aks-node-hostname
+
+# Get staging IP
+kubectl get svc -n node-hostname-staging
+
+# Get production IP
+kubectl get svc -n node-hostname-production
+
+# Test
+curl http://<STAGING_IP>
+curl http://<PRODUCTION_IP>
 ```
 
 ---
@@ -83,336 +209,355 @@ Access: **http://localhost:9080**
 ```
 .
 ├── .github/workflows/
-│   ├── infrastructure.yaml    # Infra setup (manual)
-│   └── deploy.yaml            # App deployment (auto)
+│   ├── azure-infrastructure.yaml   # Create AKS + namespaces
+│   └── azure-deploy.yaml           # Deploy staging/production
+├── terraform/azure/
+│   ├── main.tf                     # AKS cluster (1 node)
+│   ├── variables.tf                # Configuration variables
+│   ├── outputs.tf                  # Cluster info outputs
+│   └── provider.tf                 # Azure provider
 ├── helm/node-hostname/
-│   ├── Chart.yaml
-│   ├── values-staging.yaml
-│   ├── values-production.yaml
-│   └── templates/
+│   ├── Chart.yaml                  # Helm chart metadata
+│   ├── values-staging.yaml         # Staging: 2 replicas, develop tag
+│   ├── values-production.yaml      # Production: 3 replicas, latest tag
+│   └── templates/                  # Kubernetes manifests
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       ├── hpa.yaml
+│       └── ...
 ├── scripts/
-│   ├── create-cluster.sh      # Create cluster
-│   ├── deploy-local.sh        # Local deploy
-│   └── cleanup.sh             # Delete everything
-├── Dockerfile
+│   ├── create-cluster.sh           # Local Kind cluster (dev only)
+│   ├── deploy-local.sh             # Local deployment (dev only)
+│   └── cleanup.sh                  # Delete local cluster
+├── Dockerfile                      # Multi-stage build with versioning
+├── .env.example                    # Environment variables template
 └── README.md
 ```
 
 ---
 
-## 💻 Local Development
+## 🔒 Security & Secrets
 
-### Create Cluster
+### ⚠️ Never Commit These Files:
+- `.env` - Local environment variables
+- `*.tfstate` - Terraform state
+- `kubeconfig` - Kubernetes credentials
+- Service Principal secrets
 
+### Local Development (.env)
+
+Create `.env` file (Git-ignored):
 ```bash
-./scripts/create-cluster.sh
+# Azure credentials
+export ARM_CLIENT_ID="your-sp-client-id"
+export ARM_CLIENT_SECRET="your-sp-secret"
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+export ARM_TENANT_ID="your-tenant-id"
+
+# Docker Hub
+export DOCKER_USERNAME="your-docker-username"
+export DOCKER_PASSWORD="your-docker-password"
 ```
 
-**Creates:**
-- 3-node Kind cluster
-- Port mappings (8080/8443, 9080/9443)
-- metrics-server
-
-### Deploy Application
-
+Load before Terraform:
 ```bash
-# Staging
-./scripts/deploy-local.sh staging
-
-# Production
-./scripts/deploy-local.sh production
+source .env
+cd terraform/azure
+terraform init
+terraform plan
 ```
 
-**Installs:**
-- NGINX Ingress Controller
-- cert-manager
-- Application with Helm
+### GitHub Actions
 
-### Verify
+Store all credentials as **GitHub Secrets** in repository settings.
+
+### Azure Key Vault (Production Recommended)
 
 ```bash
-# Pods
-kubectl get pods --all-namespaces | grep node-hostname
+# Create Key Vault
+az keyvault create \
+  --name kv-node-hostname \
+  --resource-group rg-node-hostname \
+  --location eastus
 
-# HPA
-kubectl get hpa --all-namespaces
-
-# Test
-curl http://localhost:8080  # Staging
-curl http://localhost:9080  # Production
+# Store secrets
+az keyvault secret set \
+  --vault-name kv-node-hostname \
+  --name docker-password \
+  --value "your-token"
 ```
 
 ---
 
 ## 🔄 CI/CD Pipelines
 
-### Pipeline 1: Infrastructure (Manual)
+### Pipeline 1: Azure Infrastructure Setup
 
-**File:** `.github/workflows/infrastructure.yaml`
+**File:** [.github/workflows/azure-infrastructure.yaml](.github/workflows/azure-infrastructure.yaml)
 
-**Purpose:** Setup Kubernetes infrastructure
+**Trigger:** Manual (workflow_dispatch)
 
-**Trigger:** Manual via GitHub Actions
+**Purpose:** Create or destroy AKS infrastructure
+
+**Actions:**
+- `apply` - Create cluster + namespaces
+- `destroy` - Delete all resources
 
 **Steps:**
-1. Create Kind cluster
-2. Install NGINX Ingress
-3. Install cert-manager
-4. Install metrics-server
-5. Create namespaces
+1. Terraform init/validate/plan
+2. Terraform apply/destroy
+3. Create namespaces (staging + production)
+4. Label namespaces with environment tags
+5. Output cluster info
 
-**Usage:**
-1. GitHub → **Actions** → **Infrastructure Setup**
-2. **Run workflow**
-3. Select environment
-4. Confirm
+**Required Secrets:** All Azure credentials
 
-### Pipeline 2: Application Deployment (Auto)
+---
 
-**File:** `.github/workflows/deploy.yaml`
+### Pipeline 2: Deploy to Azure AKS
+
+**File:** [.github/workflows/azure-deploy.yaml](.github/workflows/azure-deploy.yaml)
 
 **Triggers:**
-- `develop` branch → Staging (auto)
-- `main` branch → Production (requires approval)
-- Manual trigger
+- **Automatic**: Push to `develop` → Staging
+- **Manual**: Workflow dispatch → Production (with approval)
 
 **Jobs:**
-1. **lint-and-test** - Validate code
-2. **build-and-push** - Build & push Docker image
-3. **deploy-staging** - Deploy to staging
-4. **deploy-production** - Deploy to prod (approval required)
-5. **notify** - Send summary
 
-### GitHub Setup
+#### 1. Lint and Test
+- Lint Dockerfile (hadolint)
+- Validate Helm chart
 
-**1. Create Secrets:**
-- Go to **Settings** → **Secrets and variables** → **Actions**
-- Add:
-  - `DOCKER_USERNAME` (Docker Hub username)
-  - `DOCKER_PASSWORD` (Docker Hub token)
+#### 2. Build and Push
+- Extract version from Dockerfile
+- Build multi-stage Docker image
+- Push to Docker Hub with tags:
+  - `develop` (staging)
+  - `<version>` (production)
 
-**2. Configure Production Approval:**
-- Go to **Settings** → **Environments**
-- Create `production` environment
-- Enable **Required reviewers**
-- Add reviewers
-- Save
+#### 3. Deploy Staging
+- **Trigger**: Push to develop
+- **Namespace**: `node-hostname-staging`
+- **Replicas**: 2
+- **Tag**: `develop`
+- **Approval**: None (automatic)
 
-Now production deploys require approval! ✅
+#### 4. Deploy Production
+- **Trigger**: Manual workflow dispatch
+- **Namespace**: `node-hostname-production`
+- **Replicas**: 3
+- **Tag**: `<version from Dockerfile>`
+- **Approval**: Required (GitHub environment)
 
----
-
-## 🌍 Environments
-
-| Property | Staging | Production |
-|----------|---------|------------|
-| **Namespace** | `node-hostname-staging` | `node-hostname` |
-| **HTTP Port** | 8080 | 9080 |
-| **HTTPS Port** | 8443 | 9443 |
-| **Replicas** | 2 | 3 |
-| **Image Tag** | `develop` | `latest` |
-| **HPA Min/Max** | 2-10 | 3-10 |
-| **URL** | http://localhost:8080 | http://localhost:9080 |
+**Outputs:**
+- LoadBalancer public IP
+- Deployment status
+- Pod/service information
 
 ---
 
-## 🏷️ Versioning & Updates
+## 💻 Local Development
 
-### Creating a New Version
+For local testing without Azure costs:
 
-**Example: Deploy version 2.0.0**
+### 1. Create Local Kind Cluster
 
-**1. Update Dockerfile** (if needed)
-```dockerfile
-# Make your changes
-LABEL version="2.0.0"
-```
-
-**2. Build & Push Image**
 ```bash
-# Build
-docker build -t vamartins/node-hostname:2.0.0 .
-docker build -t vamartins/node-hostname:latest .
-
-# Push
-docker push vamartins/node-hostname:2.0.0
-docker push vamartins/node-hostname:latest
+./scripts/create-cluster.sh
 ```
 
-**3. Deploy to Staging**
+Creates:
+- 3-node Kind cluster (1 control-plane + 2 workers)
+- Port mappings: 8080 (staging), 9080 (production)
+- metrics-server
+
+### 2. Deploy Locally
+
 ```bash
-# Load to Kind
-kind load docker-image vamartins/node-hostname:2.0.0 --name node-hostname
+# Staging
+./scripts/deploy-local.sh staging
 
-# Deploy
-helm upgrade --install node-hostname-staging ./helm/node-hostname \
-  --namespace node-hostname-staging \
-  --values ./helm/node-hostname/values-staging.yaml \
-  --set image.tag=2.0.0 \
-  --wait
+# Production
+./scripts/deploy-local.sh production
 ```
 
-**4. Test Staging**
-```bash
-curl http://localhost:8080
-```
+### 3. Access
 
-**5. Deploy to Production**
-```bash
-# Load to Kind
-kind load docker-image vamartins/node-hostname:2.0.0 --name node-hostname
-
-# Deploy
-helm upgrade --install node-hostname-production ./helm/node-hostname \
-  --namespace node-hostname \
-  --values ./helm/node-hostname/values-production.yaml \
-  --set image.tag=2.0.0 \
-  --wait
-```
-
-**6. Verify Production**
-```bash
-curl http://localhost:9080
-
-# Check version
-kubectl describe pod -n node-hostname | grep Image:
-```
-
-### Version via CI/CD
-
-**1. Create Git Tag**
-```bash
-git tag -a v2.0.0 -m "Release 2.0.0"
-git push origin v2.0.0
-```
-
-**2. Update values files**
-```yaml
-# helm/node-hostname/values-production.yaml
-image:
-  tag: "2.0.0"
-```
-
-**3. Commit & Push**
-```bash
-git add .
-git commit -m "chore: bump version to 2.0.0"
-git push origin main
-```
-
-Pipeline automatically deploys after approval!
-
----
-
-## 🧪 Testing
-
-### Basic Test
 ```bash
 curl http://localhost:8080  # Staging
 curl http://localhost:9080  # Production
 ```
 
-### Load Balancing
-```bash
-for i in {1..10}; do
-  curl -s http://localhost:9080 && echo ""
-done
-```
+### 4. Cleanup
 
-### Auto-scaling Test
-```bash
-# Monitor HPA
-watch kubectl get hpa --all-namespaces
-
-# Generate load (new terminal)
-kubectl run load-generator -i --tty --rm --image=busybox --restart=Never -- /bin/sh
-
-# Inside pod:
-while true; do wget -q -O- http://node-hostname-production.node-hostname.svc.cluster.local; done
-```
-
-### Health Checks
-```bash
-kubectl get pods -n node-hostname
-kubectl describe pod <pod-name> -n node-hostname
-kubectl logs -f <pod-name> -n node-hostname
-```
-
----
-
-## 🗑️ Cleanup
-
-### Delete Everything
 ```bash
 ./scripts/cleanup.sh
 ```
 
-### Delete Specific Deployment
-```bash
-# Staging
-helm uninstall node-hostname-staging -n node-hostname-staging
+---
 
-# Production
-helm uninstall node-hostname-production -n node-hostname
+## 🏷️ Versioning
+
+### Version Management
+
+Version is defined **once** in Dockerfile:
+
+```dockerfile
+ARG APP_VERSION=1.0.0
 ```
 
-### Keep Cluster, Remove Apps
+Pipeline automatically:
+1. Extracts version: `grep -m1 "ARG APP_VERSION="`
+2. Tags image: `vamartins/node-hostname:1.0.0`
+3. Deploys with that version
+
+### Update Version
+
 ```bash
-helm uninstall node-hostname-staging -n node-hostname-staging
-helm uninstall node-hostname-production -n node-hostname
+# 1. Edit Dockerfile
+sed -i '' 's/APP_VERSION=1.0.0/APP_VERSION=2.0.0/' Dockerfile
+
+# 2. Commit and push to develop (triggers staging)
+git add Dockerfile
+git commit -m "chore: bump version to 2.0.0"
+git push origin develop
+
+# 3. After testing, promote to production
+git checkout main
+git merge develop
+git push origin main
+
+# 4. Manually trigger production deploy in GitHub Actions
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 🧪 Testing
+
+### Verify Deployment
+
+```bash
+# Get cluster credentials
+az aks get-credentials \
+  --resource-group rg-node-hostname \
+  --name aks-node-hostname
+
+# Check pods
+kubectl get pods -n node-hostname-staging
+kubectl get pods -n node-hostname-production
+
+# Check services
+kubectl get svc -n node-hostname-staging
+kubectl get svc -n node-hostname-production
+
+# Check HPA
+kubectl get hpa -A
+```
+
+### Test Application
+
+```bash
+# Get LoadBalancer IPs
+STAGING_IP=$(kubectl get svc node-hostname-staging -n node-hostname-staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+PROD_IP=$(kubectl get svc node-hostname-production -n node-hostname-production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+# Test staging
+curl http://$STAGING_IP
+# {"hostname":"node-hostname-staging-abc123","version":"develop"}
+
+# Test production
+curl http://$PROD_IP
+# {"hostname":"node-hostname-production-xyz789","version":"1.0.0"}
+```
+
+### Load Testing
+
+```bash
+# Generate load to trigger HPA
+kubectl run -it --rm load-generator --image=busybox /bin/sh
+
+# Inside pod:
+while true; do wget -q -O- http://node-hostname-staging.node-hostname-staging.svc.cluster.local; done
+
+# Watch HPA scale
+kubectl get hpa -n node-hostname-staging --watch
+```
+
+---
+
+## 🔧 Troubleshooting
 
 ### Pods Not Starting
+
 ```bash
-kubectl get pods -n <namespace>
 kubectl describe pod <pod-name> -n <namespace>
 kubectl logs <pod-name> -n <namespace>
 ```
 
-### Image Pull Errors
-```bash
-# Verify image in cluster
-docker exec node-hostname-control-plane crictl images | grep node-hostname
+### ImagePullBackOff
 
-# Ensure pullPolicy is IfNotPresent
-cat helm/node-hostname/values-*.yaml | grep pullPolicy
+Check Docker Hub credentials:
+```bash
+kubectl get secret -n <namespace>
 ```
 
-### Port Already in Use
-```bash
-lsof -i :8080
-lsof -i :9080
+### LoadBalancer Pending
 
-# Kill process or restart Docker Desktop
+Azure may take 2-3 minutes to provision public IP:
+```bash
+kubectl get svc -n <namespace> --watch
 ```
 
-### HPA Not Working
+### Terraform State Lock
+
 ```bash
-# Check metrics-server (wait 2 min after deploy)
-kubectl top nodes
-kubectl top pods -n <namespace>
+cd terraform/azure
+terraform force-unlock <LOCK_ID>
 ```
 
-### Full Reset
+### Pipeline Failures
+
+Check GitHub Actions logs:
+- Terraform errors → Azure permissions
+- Docker build → Dockerfile syntax
+- Helm errors → values-*.yaml syntax
+
+---
+
+## 🧹 Cleanup
+
+### Delete AKS Cluster
+
+Go to: **GitHub Actions → Azure Infrastructure Setup → Run workflow**
+- **Action**: `destroy`
+
+Or manually:
+```bash
+cd terraform/azure
+source .env
+terraform destroy -auto-approve
+```
+
+### Delete Local Cluster
+
 ```bash
 ./scripts/cleanup.sh
-./scripts/create-cluster.sh
-./scripts/deploy-local.sh staging
-./scripts/deploy-local.sh production
 ```
 
 ---
 
-## 📚 Resources
+## 📚 Additional Resources
 
-- **Kubernetes:** https://kubernetes.io/docs/
-- **Kind:** https://kind.sigs.k8s.io/
-- **Helm:** https://helm.sh/docs/
-- **Base App:** https://github.com/cristiklein/node-hostname
+- [Azure AKS Documentation](https://learn.microsoft.com/en-us/azure/aks/)
+- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+- [Helm Documentation](https://helm.sh/docs/)
+- [Kubernetes Best Practices](https://kubernetes.io/docs/concepts/configuration/overview/)
+
+---
+
+## 📝 License
+
+MIT License - See LICENSE file for details
 
 ---
 
@@ -421,9 +566,3 @@ kubectl top pods -n <namespace>
 **Vagner Martins**
 - GitHub: [@vamartins](https://github.com/vamartins)
 - Docker Hub: [vamartins](https://hub.docker.com/u/vamartins)
-
----
-
-## 📝 License
-
-MIT License
