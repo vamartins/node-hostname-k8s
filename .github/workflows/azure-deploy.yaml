@@ -175,11 +175,8 @@ jobs:
         kubectl get hpa -n node-hostname-staging
 
         echo ""
-        echo "⏳ Waiting for pods to be ready..."
-        kubectl wait --namespace node-hostname-staging \
-          --for=condition=ready pod \
-          --selector=app.kubernetes.io/name=node-hostname \
-          --timeout=300s
+        echo "⏳ Waiting for rollout to complete..."
+        kubectl rollout status deployment/node-hostname-staging -n node-hostname-staging --timeout=300s
 
         echo "✅ Staging deployment successful!"
 
@@ -265,11 +262,8 @@ jobs:
         kubectl get hpa -n node-hostname-production
 
         echo ""
-        echo "⏳ Waiting for pods to be ready..."
-        kubectl wait --namespace node-hostname-production \
-          --for=condition=ready pod \
-          --selector=app.kubernetes.io/name=node-hostname \
-          --timeout=300s
+        echo "⏳ Waiting for rollout to complete..."
+        kubectl rollout status deployment/node-hostname-production -n node-hostname-production --timeout=300s
 
         echo "✅ Production deployment successful!"
 
