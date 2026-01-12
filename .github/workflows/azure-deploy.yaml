@@ -14,6 +14,10 @@ on:
         options:
         - production
 
+permissions:
+  contents: write
+  packages: write
+
 env:
   DOCKER_REGISTRY: docker.io
   IMAGE_NAME: almevag/node-hostname
