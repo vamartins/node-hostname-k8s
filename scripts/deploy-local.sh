@@ -34,25 +34,25 @@ fi
 # Set environment-specific values
 if [ "$ENVIRONMENT" == "staging" ]; then
     NAMESPACE="node-hostname-staging"
-    HTTP_PORT="30080"
-    HTTPS_PORT="30443"
     IMAGE_TAG="develop"
     REPLICAS="2"
+    NODE_PORT="30080"
+    VALUES_FILE="./helm/node-hostname/values-local.yaml"
 else
     NAMESPACE="node-hostname"
-    HTTP_PORT="31080"
-    HTTPS_PORT="31443"
     IMAGE_TAG="latest"
     REPLICAS="3"
+    NODE_PORT="31080"
+    VALUES_FILE="./helm/node-hostname/values-local.yaml"
 fi
 
 echo -e "${BLUE}📝 Deployment configuration:${NC}"
 echo "  Environment: ${ENVIRONMENT}"
 echo "  Namespace: ${NAMESPACE}"
-echo "  HTTP Port: ${HTTP_PORT}"
-echo "  HTTPS Port: ${HTTPS_PORT}"
+echo "  Node Port: ${NODE_PORT}"
 echo "  Image Tag: ${IMAGE_TAG}"
 echo "  Replicas: ${REPLICAS}"
+echo "  Values File: ${VALUES_FILE}"
 echo ""
 
 # Create namespace
@@ -68,10 +68,9 @@ if ! kubectl get namespace ingress-nginx &> /dev/null; then
     helm install ingress-nginx ingress-nginx/ingress-nginx \
         --namespace ingress-nginx \
         --create-namespace \
-        --set controller.hostPort.enabled=true \
         --set controller.service.type=NodePort \
-        --set controller.service.nodePorts.http=${HTTP_PORT} \
-        --set controller.service.nodePorts.https=${HTTPS_PORT} \
+        --set controller.service.nodePorts.http=31080 \
+        --set controller.service.nodePorts.https=31443 \
         --wait \
         --timeout 5m
     
@@ -131,17 +130,12 @@ docker exec ${CLUSTER_NAME}-control-plane crictl images | grep node-hostname || 
 
 # Deploy with Helm
 echo -e "${BLUE}🚀 Deploying application with Helm...${NC}"
-if [ "$ENVIRONMENT" == "staging" ]; then
-    VALUES_FILE="./helm/node-hostname/values-staging.yaml"
-else
-    VALUES_FILE="./helm/node-hostname/values-production.yaml"
-fi
-
 helm upgrade --install node-hostname-${ENVIRONMENT} ./helm/node-hostname \
     --namespace ${NAMESPACE} \
     --values ${VALUES_FILE} \
-    --timeout 10m \
-    --wait
+    --set image.tag=${IMAGE_TAG} \
+    --set replicaCount=${REPLICAS} \
+    --set service.nodePort=${NODE_PORT}
 
 echo ""
 echo -e "${GREEN}✅ Deployment complete!${NC}"
@@ -165,39 +159,42 @@ kubectl get all -n ${NAMESPACE}
 echo ""
 
 # Get access information
+# With Ingress enabled in values-local.yaml, access via localhost (Kind port mapping)
 if [ "$ENVIRONMENT" == "staging" ]; then
     HTTP_ACCESS="http://localhost:8080"
-    HTTPS_ACCESS="https://localhost:8443"
 else
     HTTP_ACCESS="http://localhost:9080"
-    HTTPS_ACCESS="https://localhost:9443"
 fi
 
 echo -e "${GREEN}🎉 Application deployed successfully!${NC}"
 echo ""
-echo -e "${BLUE}🌐 Access URLs:${NC}"
-echo "  HTTP:  ${HTTP_ACCESS}"
-echo "  HTTPS: ${HTTPS_ACCESS}"
-echo ""
-echo -e "${YELLOW}⚠️  Note: HTTPS uses self-signed certificate. Your browser will show a warning.${NC}"
+echo -e "${BLUE}🌐 Access URL:${NC}"
+echo "  HTTP: ${HTTP_ACCESS}"
 echo ""
 echo -e "${BLUE}🔧 Useful commands:${NC}"
 echo "  View pods: kubectl get pods -n ${NAMESPACE}"
 echo "  View logs: kubectl logs -f deployment/node-hostname-${ENVIRONMENT} -n ${NAMESPACE}"
-echo "  View HPA: kubectl get hpa -n ${NAMESPACE}"
+echo "  View service: kubectl get svc -n ${NAMESPACE}"
+echo "  View ingress: kubectl get ingress -n ${NAMESPACE}"
 echo "  Test HTTP: curl ${HTTP_ACCESS}"
-echo "  Test HTTPS: curl -k ${HTTPS_ACCESS}"
+echo "  Test load balancing: for i in {1..20}; do curl -s ${HTTP_ACCESS}; done | sort | uniq -c"
 echo ""
 
 # Test the application
 echo -e "${BLUE}🧪 Testing application...${NC}"
-sleep 5
+sleep 2
 if curl -s -o /dev/null -w "%{http_code}" ${HTTP_ACCESS} | grep -q "200"; then
     echo -e "${GREEN}✅ HTTP endpoint is responding!${NC}"
     echo ""
     echo -e "${BLUE}Response:${NC}"
     curl -s ${HTTP_ACCESS}
     echo ""
+    echo ""
+    echo -e "${BLUE}Testing load balancing (5 requests):${NC}"
+    for i in {1..5}; do curl -s ${HTTP_ACCESS}; echo ""; done
 else
     echo -e "${YELLOW}⚠️  Application may still be starting up. Try accessing manually.${NC}"
 fi
+
+echo ""
+echo -e "${GREEN}💡 Tip: Access via browser at ${HTTP_ACCESS} and refresh to see different pod hostnames!${NC}"

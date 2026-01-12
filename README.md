@@ -151,6 +151,14 @@ Create environment: `production`
 - Enable "Required reviewers"
 - Add yourself as reviewer
 
+> ⚠️ **Important:** The environment name must be exactly `production` (lowercase) to match the workflow configuration.
+
+**Verification:**
+1. Go to repository Settings → Environments
+2. Ensure `production` environment exists
+3. Verify "Required reviewers" is enabled with at least one reviewer
+4. When triggering the workflow manually, it will wait for approval before deploying
+
 ### 4. Create Infrastructure
 
 Go to: **GitHub Actions → Azure Infrastructure Setup → Run workflow**
@@ -399,8 +407,9 @@ az keyvault secret set \
 - **Trigger**: Push to develop
 - **Namespace**: `node-hostname-staging`
 - **Replicas**: 2
-- **Tag**: `develop`
+- **Tag**: `develop-<sha>` (unique per commit)
 - **Approval**: None (automatic)
+- **Access**: http://staging.node-hostname.local
 
 #### 4. Deploy Production
 - **Trigger**: Manual workflow dispatch
@@ -408,6 +417,8 @@ az keyvault secret set \
 - **Replicas**: 3
 - **Tag**: `<version from Dockerfile>`
 - **Approval**: Required (GitHub environment)
+- **Access**: http://production.node-hostname.local
+- **GitHub Release**: Automatically created with version tag
 
 **Outputs:**
 - NGINX Ingress LoadBalancer IP
@@ -419,7 +430,7 @@ az keyvault secret set \
 
 ## 💻 Local Development
 
-For local testing without Azure costs:
+For local testing without Azure costs, using Kind cluster with full Ingress support:
 
 ### 1. Create Local Kind Cluster
 
@@ -429,24 +440,60 @@ For local testing without Azure costs:
 
 Creates:
 - 3-node Kind cluster (1 control-plane + 2 workers)
-- Port mappings: 8080 (staging), 9080 (production)
-- metrics-server
+- Port mappings:
+  - 30080 → localhost:8080 (staging)
+  - 31080 → localhost:9080 (production)
+  - 30443 → localhost:8443 (staging HTTPS)
+  - 31443 → localhost:9443 (production HTTPS)
+- metrics-server for HPA
 
 ### 2. Deploy Locally
 
 ```bash
-# Staging
+# Staging (2 replicas)
 ./scripts/deploy-local.sh staging
 
-# Production
+# Production (3 replicas)
 ./scripts/deploy-local.sh production
 ```
 
-### 3. Access
+The script automatically:
+- Installs NGINX Ingress Controller (NodePort 31080/31443)
+- Installs cert-manager with self-signed ClusterIssuer
+- Builds and loads Docker image into Kind
+- Deploys application with Helm using values-local.yaml
+- Sets up Ingress with catch-all host (accessible via localhost)
+
+### 3. Access and Test Load Balancing
 
 ```bash
-curl http://localhost:8080  # Staging
+# Single request
 curl http://localhost:9080  # Production
+curl http://localhost:8080  # Staging
+
+# Test load balancing (see different pod hostnames)
+for i in 1 2 3 4 5 6 7 8 9 10; do curl -s http://localhost:9080; echo ""; done
+
+# Or open in browser and refresh multiple times
+open http://localhost:9080
+```
+
+**Load Balancing:** With Ingress enabled, requests are distributed across all pods. Each refresh shows a different pod hostname.
+
+### 4. Verify Deployment
+
+```bash
+# Check pods
+kubectl get pods -n node-hostname
+
+# Check ingress
+kubectl get ingress -n node-hostname
+
+# Check NGINX Ingress Controller
+kubectl get svc -n ingress-nginx
+
+# View logs
+kubectl logs -f deployment/node-hostname-production -n node-hostname
 ```
 
 ### 4. Cleanup
@@ -454,6 +501,8 @@ curl http://localhost:9080  # Production
 ```bash
 ./scripts/cleanup.sh
 ```
+
+Deletes the entire Kind cluster and all resources.
 
 ---
 
