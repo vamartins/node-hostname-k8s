@@ -66,8 +66,8 @@ jobs:
           echo "version=${APP_VERSION}" >> $GITHUB_OUTPUT
           echo "image_tag=${APP_VERSION}" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-          echo "version=develop" >> $GITHUB_OUTPUT
-          echo "image_tag=develop" >> $GITHUB_OUTPUT
+          echo "version=develop-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "image_tag=develop-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
         else
           echo "version=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           echo "image_tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
