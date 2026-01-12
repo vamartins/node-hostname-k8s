@@ -2,7 +2,7 @@
 FROM node:18-alpine AS builder
 
 # Application version - Change this to update the version
-ARG APP_VERSION=1.0.0
+ARG APP_VERSION=2.0.0
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN apk add --no-cache git && \
 FROM node:18-alpine
 
 # Application version - Must match builder stage
-ARG APP_VERSION=1.0.0
+ARG APP_VERSION=2.0.0
 
 # Add metadata
 LABEL maintainer="vagner.samm@gmail.com"
