@@ -185,21 +185,21 @@ jobs:
         POD_COUNT=$(kubectl get pods -n node-hostname-staging --field-selector=status.phase=Running | grep -c node-hostname || echo "0")
 
         echo "## 🚀 Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"| Property | Value |\" >> $GITHUB_STEP_SUMMARY
-        echo \"|----------|-------|\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Version** | \\`${{ needs.build-and-push.outputs.version }}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Image** | \\`${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version }}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Namespace** | \\`node-hostname-staging\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Pods Running** | ${POD_COUNT} |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Ingress IP** | \\`${INGRESS_IP}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"### 🌐 Access URLs\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"- **HTTP:** \\`curl -H \\\"Host: staging.node-hostname.local\\\" http://${INGRESS_IP}\\`\" >> $GITHUB_STEP_SUMMARY
-        echo \"- **HTTPS:** \\`curl -k -H \\\"Host: staging.node-hostname.local\\\" https://${INGRESS_IP}\\`\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"📝 **Commit:** ${{ github.event.head_commit.message }}\" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Version** | \`${{ needs.build-and-push.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Image** | \`${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Namespace** | \`node-hostname-staging\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Pods Running** | ${POD_COUNT} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Ingress IP** | \`${INGRESS_IP}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Access URLs" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **HTTP:** \`curl -H \"Host: staging.node-hostname.local\" http://${INGRESS_IP}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **HTTPS:** \`curl -k -H \"Host: staging.node-hostname.local\" https://${INGRESS_IP}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📝 **Commit:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
 
     - name: Get Service IP
       id: get_ip
@@ -275,30 +275,30 @@ jobs:
         POD_COUNT=$(kubectl get pods -n node-hostname-production --field-selector=status.phase=Running | grep -c node-hostname || echo "0")
 
         echo "## 🎉 Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"| Property | Value |\" >> $GITHUB_STEP_SUMMARY
-        echo \"|----------|-------|\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Version** | \\`${{ needs.build-and-push.outputs.version }}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Image** | \\`${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version }}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Namespace** | \\`node-hostname-production\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Pods Running** | ${POD_COUNT} |\" >> $GITHUB_STEP_SUMMARY
-        echo \"| **Ingress IP** | \\`${INGRESS_IP}\\` |\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"### 🌐 Access URLs\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"- **HTTP:** \\`curl -H \\\"Host: production.node-hostname.local\\\" http://${INGRESS_IP}\\`\" >> $GITHUB_STEP_SUMMARY
-        echo \"- **HTTPS:** \\`curl -k -H \\\"Host: production.node-hostname.local\\\" https://${INGRESS_IP}\\`\" >> $GITHUB_STEP_SUMMARY
-        echo \"\" >> $GITHUB_STEP_SUMMARY
-        echo \"### 🔄 Rollback\" >> $GITHUB_STEP_SUMMARY
-        echo \"To rollback to this version, run the workflow again with the same settings or use:\" >> $GITHUB_STEP_SUMMARY
-        echo \"\\`\\`\\`bash\" >> $GITHUB_STEP_SUMMARY
-        echo \"helm rollback node-hostname-production -n node-hostname-production\" >> $GITHUB_STEP_SUMMARY
-        echo \"# Or deploy specific version:\" >> $GITHUB_STEP_SUMMARY
-        echo \"helm upgrade --install node-hostname-production ./helm/node-hostname \\\\\" >> $GITHUB_STEP_SUMMARY
-        echo \"  --namespace node-hostname-production \\\\\" >> $GITHUB_STEP_SUMMARY
-        echo \"  --values ./helm/node-hostname/values-production.yaml \\\\\" >> $GITHUB_STEP_SUMMARY
-        echo \"  --set image.tag=${{ needs.build-and-push.outputs.version }}\" >> $GITHUB_STEP_SUMMARY
-        echo \"\\`\\`\\`\" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Version** | \`${{ needs.build-and-push.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Image** | \`${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Namespace** | \`node-hostname-production\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Pods Running** | ${POD_COUNT} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Ingress IP** | \`${INGRESS_IP}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Access URLs" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **HTTP:** \`curl -H \"Host: production.node-hostname.local\" http://${INGRESS_IP}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **HTTPS:** \`curl -k -H \"Host: production.node-hostname.local\" https://${INGRESS_IP}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔄 Rollback" >> $GITHUB_STEP_SUMMARY
+        echo "To rollback to this version, run the workflow again with the same settings or use:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "helm rollback node-hostname-production -n node-hostname-production" >> $GITHUB_STEP_SUMMARY
+        echo "# Or deploy specific version:" >> $GITHUB_STEP_SUMMARY
+        echo "helm upgrade --install node-hostname-production ./helm/node-hostname \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --namespace node-hostname-production \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --values ./helm/node-hostname/values-production.yaml \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --set image.tag=${{ needs.build-and-push.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
     - name: Get Service IP
       id: get_ip
