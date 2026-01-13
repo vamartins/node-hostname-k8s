@@ -27,12 +27,6 @@ variable "environment" {
   }
 }
 
-variable "kubernetes_version" {
-  description = "Kubernetes version for AKS cluster"
-  type        = string
-  default     = null # Use Azure's default supported version
-}
-
 variable "node_count" {
   description = "Number of nodes in the default node pool"
   type        = number
@@ -42,7 +36,7 @@ variable "node_count" {
 variable "node_vm_size" {
   description = "VM size for AKS nodes"
   type        = string
-  default     = "Standard_B2s" # 2 vCPU, 4GB RAM - Affordable option
+  default     = "Standard_B2s" # 2 vCPU, 4GB RAM
 }
 
 variable "tags" {
@@ -52,5 +46,6 @@ variable "tags" {
     Project     = "node-hostname"
     ManagedBy   = "terraform"
     Environment = "staging"
+    Owner       = "Vagner.Martins"
   }
 }

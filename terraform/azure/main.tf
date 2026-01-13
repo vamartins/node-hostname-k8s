@@ -11,7 +11,6 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   dns_prefix          = var.cluster_name
-  # kubernetes_version removed to use Azure's default supported version
 
   default_node_pool {
     name                = "default"
@@ -31,7 +30,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     network_plugin    = "azure"
     network_policy    = "azure"
     load_balancer_sku = "standard"
-    service_cidr      = "10.0.0.0/16"
+    service_cidr      = "10.0.0.0/24"
     dns_service_ip    = "10.0.0.10"
   }
 
@@ -43,7 +42,7 @@ resource "azurerm_virtual_network" "main" {
   name                = "vnet-${var.cluster_name}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  address_space       = ["10.1.0.0/16"]
+  address_space       = ["10.1.0.0/24"]
   tags                = var.tags
 }
 
@@ -52,7 +51,7 @@ resource "azurerm_subnet" "aks" {
   name                 = "subnet-aks"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.1.0.0/22"]
+  address_prefixes     = ["10.1.0.0/26"]
 }
 
 # Role Assignment for AKS to manage network
