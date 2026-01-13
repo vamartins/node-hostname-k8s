@@ -10,17 +10,17 @@
 
 ## 📖 Table of Contents
 
-- [Overview](#-overview)
-- [Architecture](#-architecture)
-- [Features](#-features)
-- [Prerequisites](#-prerequisites)
-- [Quick Start](#-quick-start)
-- [Project Structure](#-project-structure)
-- [Security & Secrets](#-security--secrets)
-- [CI/CD Pipelines](#-cicd-pipelines)
-- [Local Development](#-local-development)
-- [Versioning](#-versioning)
-- [Troubleshooting](#-troubleshooting)
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Security & Secrets](#security--secrets)
+- [CI/CD Pipelines](#cicd-pipelines)
+- [Local Development](#local-development)
+- [Versioning](#versioning)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -301,7 +301,6 @@ for i in {1..20}; do curl -s -H "Host: staging.node-hostname.local" http://$INGR
 │   └── index.js                    # Node.js application
 ├── Dockerfile                      # Multi-stage build with versioning
 ├── .dockerignore                   # Docker build exclusions
-├── .env.example                    # Environment variables template
 ├── .gitignore                      # Git exclusions
 └── README.md                       # This file
 ```
