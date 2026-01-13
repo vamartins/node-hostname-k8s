@@ -283,20 +283,27 @@ for i in {1..20}; do curl -s -H "Host: staging.node-hostname.local" http://$INGR
 │   └── provider.tf                 # Azure provider
 ├── helm/node-hostname/
 │   ├── Chart.yaml                  # Helm chart metadata
-│   ├── values-staging.yaml         # Staging: 2 replicas, develop tag
-│   ├── values-production.yaml      # Production: 3 replicas, latest tag
+│   ├── values.yaml                 # Default values
+│   ├── values-local.yaml           # Local Kind: 2-5 replicas, HPA enabled
+│   ├── values-staging.yaml         # Staging: 2 replicas, develop-<sha> tag
+│   ├── values-production.yaml      # Production: 3 replicas, versioned tag
 │   └── templates/                  # Kubernetes manifests
-│       ├── deployment.yaml
-│       ├── service.yaml
-│       ├── hpa.yaml
-│       └── ...
+│       ├── deployment.yaml         # Deployment with health checks
+│       ├── service.yaml            # ClusterIP service
+│       ├── ingress.yaml            # Ingress with TLS
+│       ├── hpa.yaml                # Horizontal Pod Autoscaler
+│       └── serviceaccount.yaml     # Service account
 ├── scripts/
-│   ├── create-cluster.sh           # Local Kind cluster (dev only)
-│   ├── deploy-local.sh             # Local deployment (dev only)
-│   └── cleanup.sh                  # Delete local cluster
+│   ├── create-cluster.sh           # Create local Kind cluster (3 nodes)
+│   ├── deploy-local.sh             # Deploy to local Kind with Ingress
+│   └── cleanup.sh                  # Delete local Kind cluster
+├── app/
+│   └── index.js                    # Node.js application
 ├── Dockerfile                      # Multi-stage build with versioning
+├── .dockerignore                   # Docker build exclusions
 ├── .env.example                    # Environment variables template
-└── README.md
+├── .gitignore                      # Git exclusions
+└── README.md                       # This file
 ```
 
 ---
@@ -496,7 +503,31 @@ kubectl get svc -n ingress-nginx
 kubectl logs -f deployment/node-hostname-production -n node-hostname
 ```
 
-### 4. Cleanup
+### 5. Test HPA Auto-Scaling (Optional)
+
+The local deployment includes Horizontal Pod Autoscaler (HPA) for testing auto-scaling behavior:
+
+```bash
+# Check current HPA status
+kubectl get hpa -n node-hostname
+
+# Generate load to trigger scaling (in one terminal)
+kubectl run -i --tty load-generator --rm --image=busybox --restart=Never -n node-hostname -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://node-hostname-production; done"
+
+# Watch HPA and pods scale up (in another terminal)
+kubectl get hpa -n node-hostname --watch
+# Or watch pods
+kubectl get pods -n node-hostname --watch
+```
+
+**Expected behavior:**
+- Starts with **minReplicas: 2**
+- Scales up to **maxReplicas: 5** when CPU > 70%
+- Scales down automatically after load stops (takes ~5 minutes)
+
+Press `Ctrl+C` to stop the load generator.
+
+### 6. Cleanup
 
 ```bash
 ./scripts/cleanup.sh

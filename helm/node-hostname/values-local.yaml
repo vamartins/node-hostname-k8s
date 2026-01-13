@@ -1,5 +1,4 @@
 # Local Kind deployment configuration
-# This file configures the application for local development with Ingress enabled
 # Ingress allows load balancing across multiple pods (visible in browser/curl)
 
 replicaCount: 3
@@ -35,7 +34,11 @@ resources:
     memory: 64Mi
 
 autoscaling:
-  enabled: false
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
 
 livenessProbe:
   httpGet:
