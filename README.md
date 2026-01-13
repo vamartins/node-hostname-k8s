@@ -10,17 +10,17 @@
 
 ## 📖 Table of Contents
 
-- [Overview](#-overview-1)
-- [Architecture](#-architecture-1)
-- [Features](#-features-1)
-- [Prerequisites](#-prerequisites-1)
-- [Quick Start](#-quick-start-1)
-- [Project Structure](#-project-structure-1)
-- [Security & Secrets](#-security--secrets-1)
-- [CI/CD Pipelines](#-cicd-pipelines-1)
-- [Local Development](#-local-development-1)
-- [Versioning](#-versioning-1)
-- [Troubleshooting](#-troubleshooting-1)
+- [Overview](#-overview)
+- [Architecture](#️-architecture)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Security & Secrets](#-security--secrets)
+- [CI/CD Pipelines](#-cicd-pipelines)
+- [Local Development](#-local-development)
+- [Versioning](#️-versioning)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
